@@ -87,6 +87,7 @@ class LabeledVideoDataset(torch.utils.data.IterableDataset):
         self._loaded_video_label = None
         self._loaded_clips = None
         self._next_clip_start_time = 0.0
+        self.sample_dict_dummy = {}
 
     @property
     def video_sampler(self):
@@ -205,11 +206,14 @@ class LabeledVideoDataset(torch.utils.data.IterableDataset):
             if self._transform is not None:
                 sample_dict = self._transform(sample_dict)
 
+            self.sample_dict_dummy = sample_dict
+
             return sample_dict
         else:
-            raise RuntimeError(
-                f"Failed to load video after {self._MAX_CONSECUTIVE_FAILURES} retries."
-            )
+            return self.sample_dict_dummy
+            # raise RuntimeError(
+            #     f"Failed to load video after {self._MAX_CONSECUTIVE_FAILURES} retries."
+            # )
 
     def __iter__(self):
         self._video_sampler_iter = None  # Reset video sampler
@@ -366,7 +370,12 @@ def clip_recognition_dataset(
         # (video_paths, annotation_dict). For recognition, the annotation_dict contains
         # the verb and noun label, and the annotation boundaries.
         untrimmed_clip_annotations = []
-        for entry in annotations:
+        for entry in annotations["clips"]:
+
+            video_path = os.path.join(video_path_prefix, f'{entry["clip_uid"]}.mp4')
+            if os.path.exists(video_path) == False:
+                continue
+
             untrimmed_clip_annotations.append(
                 (
                     os.path.join(video_path_prefix, f'{entry["clip_uid"]}.mp4'),

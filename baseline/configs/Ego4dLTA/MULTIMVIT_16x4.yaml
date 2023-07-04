@@ -62,14 +62,14 @@ BN:
 SOLVER:
   BASE_LR: 4e-2
   LR_POLICY: cosine_warmup
-  MAX_EPOCH: 45
+  MAX_EPOCH: 50
   MOMENTUM: 0.9
   OPTIMIZING_METHOD: adam
   WEIGHT_DECAY: 1e-4
   WARMUP_FACTOR: 0.1
   WARMUP_STEPS: 1000
 MODEL:
-  NUM_CLASSES: [115, 478]
+  NUM_CLASSES: [117, 521]
   ARCH: mvit
   MODEL_NAME: ForecastingEncoderDecoder
   LOSS_FUNC: cross_entropy

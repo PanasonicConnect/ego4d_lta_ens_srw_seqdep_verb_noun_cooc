@@ -63,14 +63,14 @@ pretrained_models/long_term_anticipation/ego4d_mvit16x4.ckpt
 
 ### Train an Ego4D long term anticipation model
 ```
-bash tools/long_term_anticipation/ego4d_forecasting.sh checkpoints/forecasting/
+bash tools/long_term_anticipation/ego4d_forecasting_slowfast_concat.sh checkpoints/forecasting/
+bash tools/long_term_anticipation/ego4d_forecasting_slowfast-clip_transformer.sh checkpoints/forecasting/
 ```
 
 See script for different model configurations (backbones, aggregator modules, and heads). Tensorboard logs plot training and validation metrics over time. The pretrained checkpoints for the long-term anticipation models can be found at:
 ```
 pretrained_models/long_term_anticipation/lta_slowfast_concat.ckpt
 pretrained_models/long_term_anticipation/lta_slowfast_trf.ckpt
-pretrained_models/long_term_anticipation/lta_mvit_concat.ckpt
 ```
 
 ## Generate predictions
@@ -78,5 +78,18 @@ pretrained_models/long_term_anticipation/lta_mvit_concat.ckpt
 Model predictions on the test set can be generated using the following script. See script for option and details.
 ```
 # Generate model predictions (outputs.json)
-bash tools/long_term_anticipation/evaluate_forecasting.sh output/
+bash tools/long_term_anticipation/evaluate_forecasting_slowfast_concat.sh output/
+bash tools/long_term_anticipation/evaluate_forecasting_slowfast-clip_transformer.sh output/
+```
+
+To generate data that shows the co-occurrence statistics taking into account the co-occurrence relationship between verbs and nouns, as well as the probability of noun-verb pairs, use the following command:
+
+```
+python gen_npmi.py --root_dir $PWD/data/long_term_anticipation/annotations/ --output_dir $PWD/data/long_term_anticipation/annotations/
+```
+
+To perform ensemble processing of two models, use the following command:
+
+```
+python ensemble.py --root_dir output/ --data_dir $PWD/data/long_term_anticipation/annotations/ --dataset test --npmi
 ```

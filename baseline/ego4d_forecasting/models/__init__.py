@@ -10,4 +10,6 @@ from .sta_models import (
 )  # noqa
 from .lta_models import (
     ForecastingEncoderDecoder,
+    ForecastingEncoderDecoder_clip,
+    ForecastingEncoderDecoder_clip_text
 )  # noqa

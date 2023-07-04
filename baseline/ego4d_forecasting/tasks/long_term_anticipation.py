@@ -154,7 +154,8 @@ class LongTermAnticipationTask(VideoTask):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.checkpoint_metric = f"val_0_ED_{cfg.FORECASTING.NUM_ACTIONS_TO_PREDICT-1}"
+        # self.checkpoint_metric = f"val_0_ED_{cfg.FORECASTING.NUM_ACTIONS_TO_PREDICT-1}"
+        self.checkpoint_metric = f"val_2_AUED"
 
     def forward(self, inputs, tgts):
         return self.model(inputs, tgts=tgts)
@@ -174,17 +175,32 @@ class LongTermAnticipationTask(VideoTask):
         loss = 0
         step_result = {}
         for head_idx, pred_head in enumerate(preds):
-            for seq_idx in range(pred_head.shape[1]):
+            if self.cfg.MODEL.LABEL_SMOOTHING:
+                onehot_labels = torch.nn.functional.one_hot(labels[:, :, head_idx], pred_head.shape[2]).float()
+                avg = onehot_labels.mean(dim=1)
+                for seq_idx in range(pred_head.shape[1]):
+                    smoothed_label = 0.5 * onehot_labels[:, seq_idx] + 0.5 * avg
+                    loss += self.loss_fun(
+                        pred_head[:, seq_idx], smoothed_label
+                    )
+                    top1_err, top5_err = metrics.distributed_topk_errors(
+                        pred_head[:, seq_idx], labels[:, seq_idx, head_idx], (1, 5)
+                    )
 
-                loss += self.loss_fun(
-                    pred_head[:, seq_idx], labels[:, seq_idx, head_idx]
-                )
-                top1_err, top5_err = metrics.distributed_topk_errors(
-                    pred_head[:, seq_idx], labels[:, seq_idx, head_idx], (1, 5)
-                )
+                    step_result[f"train_{seq_idx}_{head_idx}_top1_err"] = top1_err.item()
+                    step_result[f"train_{seq_idx}_{head_idx}_top5_err"] = top5_err.item()
+            else:
+                for seq_idx in range(pred_head.shape[1]):
 
-                step_result[f"train_{seq_idx}_{head_idx}_top1_err"] = top1_err.item()
-                step_result[f"train_{seq_idx}_{head_idx}_top5_err"] = top5_err.item()
+                    loss += self.loss_fun(
+                        pred_head[:, seq_idx], labels[:, seq_idx, head_idx]
+                    )
+                    top1_err, top5_err = metrics.distributed_topk_errors(
+                        pred_head[:, seq_idx], labels[:, seq_idx, head_idx], (1, 5)
+                    )
+
+                    step_result[f"train_{seq_idx}_{head_idx}_top1_err"] = top1_err.item()
+                    step_result[f"train_{seq_idx}_{head_idx}_top5_err"] = top5_err.item()
 
         for head_idx in range(len(preds)):
             step_result[f"train_{head_idx}_top1_err"] = np.mean(
@@ -224,6 +240,8 @@ class LongTermAnticipationTask(VideoTask):
         # The list is for each label type (e.g. [<verb_tensor>, <noun_tensor>])
         preds = self.model.generate(input, k=k)  # [(B, K, Z)]
         step_result = {}
+        pred_action = []
+        label_action = []
         for head_idx, pred in enumerate(preds):
             assert pred.shape[1] == k
             bi, ki, zi = (0, 1, 2)
@@ -231,11 +249,24 @@ class LongTermAnticipationTask(VideoTask):
             pred, forecast_labels = pred.cpu(), forecast_labels.cpu()
 
             label = forecast_labels[:, :, head_idx : head_idx + 1]
+            pred_action.append(pred.detach().numpy().copy())
+            label_action.append(label.detach().numpy().copy())
             auedit = metrics.distributed_AUED(pred, label)
             results = {
                 f"val_{head_idx}_" + k: v for k, v in auedit.items()
             }
             step_result.update(results)
+
+        pred = pred_action[0] * 1000 + pred_action[1]
+        label = label_action[0] * 1000 + label_action[1]
+        pred = torch.from_numpy(pred).clone()
+        label = torch.from_numpy(label).clone()
+
+        auedit = metrics.distributed_AUED(pred, label)
+        results = {
+            f"val_2_" + k: v for k, v in auedit.items()
+        }
+        step_result.update(results)
 
         return step_result
 
@@ -257,11 +288,14 @@ class LongTermAnticipationTask(VideoTask):
         # - Z is number of future predictions,
         # The list is for each label type (e.g. [<verb_tensor>, <noun_tensor>])
         preds = self.model.generate(input, k=k)  # [(B, K, Z)]
+        logits = self.model.generate_logits(input)
         
         return {
             'last_clip_ids': last_clip_ids,
             'verb_preds': preds[0],
             'noun_preds': preds[1],
+            'verb_logits': logits[0],
+            'noun_logits': logits[1],
         }
 
     def test_epoch_end(self, outputs):
@@ -271,6 +305,10 @@ class LongTermAnticipationTask(VideoTask):
             preds = torch.cat([x[key] for x in outputs], 0)
             preds = self.all_gather(preds).unbind()
             test_outputs[key] = torch.cat(preds, 0)
+        for key in ['verb_logits', 'noun_logits']:
+            logits = torch.cat([x[key] for x in outputs], 0)
+            logits = self.all_gather(logits).unbind()
+            test_outputs[key] = torch.cat(logits, 0)
 
         last_clip_ids = [x['last_clip_ids'] for x in outputs]
         last_clip_ids = [item for sublist in last_clip_ids for item in sublist]
@@ -286,4 +324,11 @@ class LongTermAnticipationTask(VideoTask):
                 }       
             json.dump(pred_dict, open('outputs.json', 'w'))
 
+            logit_dict = {}
+            for idx in range(len(test_outputs['last_clip_ids'])):
+                logit_dict[test_outputs['last_clip_ids'][idx]] = {
+                    'verb': test_outputs['verb_logits'][idx].cpu().tolist(),
+                    'noun': test_outputs['noun_logits'][idx].cpu().tolist(),
+                }
+            json.dump(logit_dict, open('outputs_logits.json', 'w'))
 

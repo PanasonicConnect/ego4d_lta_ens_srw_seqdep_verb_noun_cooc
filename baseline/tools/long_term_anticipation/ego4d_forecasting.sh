@@ -60,3 +60,11 @@ run slowfast_trf \
 # # Debug locally using a smaller batch size / fewer GPUs
 # CLUSTER_ARGS="NUM_GPUS 2 TRAIN.BATCH_SIZE 8 TEST.BATCH_SIZE 32"
 
+# # SlowFast-Transformer (CLIP)
+# BACKBONE_WTS=$PWD/pretrained_models/long_term_anticipation/ego4d_slowfast8x8.ckpt
+# run slowfast_trf \
+#     configs/Ego4dLTA/MULTISLOWFAST_8x8_R101_clip.yaml \
+#     FORECASTING.AGGREGATOR TransformerAggregator_clip \
+#     FORECASTING.DECODER MultiHeadDecoder_clip \
+#     FORECASTING.NUM_INPUT_CLIPS 4 \
+#     DATA.CHECKPOINT_MODULE_FILE_PATH ${BACKBONE_WTS}

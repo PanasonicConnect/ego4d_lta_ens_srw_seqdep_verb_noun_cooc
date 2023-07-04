@@ -234,7 +234,8 @@ def main(cfg):
         replace_sampler_ddp=False,
         fast_dev_run=cfg.FAST_DEV_RUN,
         default_root_dir=cfg.OUTPUT_DIR,
-        plugins=DDPPlugin(find_unused_parameters=False),
+        # plugins=DDPPlugin(find_unused_parameters=False),
+        plugins=DDPPlugin(find_unused_parameters=True),
         **args,
     )
 
@@ -247,6 +248,9 @@ def main(cfg):
 
     elif cfg.TRAIN.ENABLE:
         return trainer.fit(task)
+
+    elif cfg.TEST.VALID:
+        return trainer.validate(task)
 
     elif cfg.TEST.ENABLE:
         return trainer.test(task)

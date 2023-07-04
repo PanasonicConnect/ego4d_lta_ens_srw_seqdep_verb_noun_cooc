@@ -72,6 +72,8 @@ class Ego4dRecognition(torch.utils.data.Dataset):
         clip_sampler = make_clip_sampler(clip_sampler_type, clip_duration)
 
         mode_ = 'test_unannotated' if mode=='test' else mode
+        if mode == 'test' and (cfg.TEST.EVAL_VAL or cfg.TEST.VALID):
+            mode_ = 'val'
         data_path = os.path.join(self.cfg.DATA.PATH_TO_DATA_DIR, f'fho_lta_{mode_}.json')
         
         self.dataset = ptv_dataset_helper.clip_recognition_dataset(
@@ -136,25 +138,27 @@ class Ego4dLongTermAnticipation(torch.utils.data.Dataset):
             "test",
         ], "Split '{}' not supported for Ego4d ".format(mode)
 
+
         sampler = RandomSampler
         if cfg.SOLVER.ACCELERATOR != "dp" and cfg.NUM_GPUS > 1:
             sampler = DistributedSampler
-        if mode == 'test':
-            sampler = DistributedEvalSampler
+        # if mode == 'test':
+        #     sampler = DistributedEvalSampler
 
-        clip_sampler_type = "uniform" if mode == "test" else "random"
+        # clip_sampler_type = "uniform" if mode == "test" else "random"
+        clip_sampler_type = "random"
         clip_duration = (
             self.cfg.DATA.NUM_FRAMES * self.cfg.DATA.SAMPLING_RATE
         ) / self.cfg.DATA.TARGET_FPS
         clip_sampler = make_clip_sampler(clip_sampler_type, clip_duration)
 
-        if mode == 'test':
-            clip_sampler = CenterClipVideoSampler(clip_duration)
+        # if mode == 'test':
+        #     clip_sampler = CenterClipVideoSampler(clip_duration)
 
 
         mode_ = 'test_unannotated' if mode=='test' else mode
         # [!!]
-        if mode == 'test' and cfg.TEST.EVAL_VAL:
+        if mode == 'test' and (cfg.TEST.EVAL_VAL or cfg.TEST.VALID):
             mode_ = 'val'
         data_path = os.path.join(self.cfg.DATA.PATH_TO_DATA_DIR, f'fho_lta_{mode_}.json')
 

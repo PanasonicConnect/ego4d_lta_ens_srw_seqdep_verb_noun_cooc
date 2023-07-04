@@ -69,6 +69,7 @@ MODEL:
   ARCH: slowfast
   MODEL_NAME: ForecastingEncoderDecoder
   LOSS_FUNC: cross_entropy
+  LABEL_SMOOTHING: False
   DROPOUT_RATE: 0.5
 TEST:
   ENABLE: True

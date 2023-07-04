@@ -9,7 +9,6 @@ from tqdm import tqdm
 parser = ArgumentParser()
 parser.add_argument('path_to_annotations', type=Path)
 parser.add_argument('path_to_output_json', type=Path)
-parser.add_argument('--fname_format', type=str, default="{video_uid:s}_{frame_number:07d}.jpg")
 
 args = parser.parse_args()
 
@@ -41,7 +40,8 @@ images = []
 annotations = []
 
 for example in tqdm(labels['annotations']):
-    fname = args.fname_format.format(video_uid=example["video_uid"], frame_number=example["frame"])
+    uid = example['uid']
+    fname = f"{uid}.jpg"
     video_info = labels['info']['video_metadata'][example['video_uid']]
 
     if fname not in filenames_to_ids:

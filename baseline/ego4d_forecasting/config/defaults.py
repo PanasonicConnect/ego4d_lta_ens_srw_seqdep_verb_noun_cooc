@@ -84,6 +84,7 @@ _C.TEST.NO_ACT = True
 
 _C.TEST.EVAL_VAL = False
 
+_C.TEST.VALID = False
 
 # -----------------------------------------------------------------------------
 # ResNet options
@@ -169,6 +170,9 @@ _C.MODEL.NUM_VERBS = 125
 
 # The number of nouns to predict for the model
 _C.MODEL.NUM_NOUNS = 352
+
+# Lavel Smoothing
+_C.MODEL.LABEL_SMOOTHING = False
 
 # Loss function.
 _C.MODEL.LOSS_FUNC = "cross_entropy"
